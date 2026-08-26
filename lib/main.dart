@@ -44,16 +44,30 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final TextEditingController _licenseController = TextEditingController();
+  final TextEditingController _linkController = TextEditingController();
   bool _isLoading = false;
   String _errorMessage = '';
 
   Future<void> _processLogin() async {
-    final license = _licenseController.text.trim();
+    String inputLink = _linkController.text.trim();
 
-    if (!license.startsWith('BARANLINK')) {
+    if (inputLink.isEmpty) {
       setState(() {
-        _errorMessage = 'لطفاً لایسنس معتبر وارد کنید (شروع با BARANLINK).';
+        _errorMessage = 'لطفاً لینک اختصاصی خود را وارد کنید.';
+      });
+      return;
+    }
+
+    // هوشمندسازی لینک در صورتی که کاربر https:// را کپی نکرده باشد
+    if (!inputLink.startsWith('http://') && !inputLink.startsWith('https://')) {
+      inputLink = 'https://$inputLink';
+    }
+
+    // بررسی امنیتی برای اطمینان از اینکه لینک متعلق به دامنه‌های مجاز است (پشتیبانی مخفی از دامنه دوم)
+    final String lowerLink = inputLink.toLowerCase();
+    if (!lowerLink.contains('baranlink.cyou') && !lowerLink.contains('ernull.bond')) {
+      setState(() {
+        _errorMessage = 'لینک نامعتبر است. لطفاً لینک صحیح سامانه باران لینک را وارد کنید.';
       });
       return;
     }
@@ -64,8 +78,9 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
+      // ارسال درخواست به لینکی که کاربر وارد کرده است
       final response = await http.get(
-        Uri.parse('https://baranlink.cyou/api/BaranToken/$license'),
+        Uri.parse(inputLink),
         headers: {'Accept': 'application/json'},
       ).timeout(const Duration(seconds: 15));
 
@@ -75,11 +90,13 @@ class _LoginScreenState extends State<LoginScreen> {
         final String accessToken = data['access_token'] ?? '';
 
         if (success && accessToken.isNotEmpty) {
+          // ساخت لینک هدایت بر اساس اطلاعات دریافت شده
           final String ssoLink =
               'https://snapp.market/?source=jek_pwa-food&food_service_design=new&token=$accessToken&sso_channel=food';
           
           final Uri url = Uri.parse(ssoLink);
           
+          // باز کردن لینک در مرورگر پیش‌فرض گوشی
           if (await canLaunchUrl(url)) {
             await launchUrl(
               url,
@@ -87,17 +104,17 @@ class _LoginScreenState extends State<LoginScreen> {
             );
           } else {
              setState(() {
-              _errorMessage = 'امکان باز کردن لینک در مرورگر وجود ندارد.';
+              _errorMessage = 'امکان باز کردن مرورگر در گوشی شما وجود ندارد.';
             });
           }
         } else {
           setState(() {
-            _errorMessage = data['message'] ?? 'لایسنس وارد شده نامعتبر یا منقضی شده است.';
+            _errorMessage = data['message'] ?? 'لینک وارد شده نامعتبر یا منقضی شده است.';
           });
         }
       } else {
         setState(() {
-          _errorMessage = 'بررسی وضعیت لایسنس با مشکل مواجه شد. لطفاً دوباره تلاش کنید.';
+          _errorMessage = 'بررسی وضعیت لینک با مشکل مواجه شد. لطفاً دوباره تلاش کنید.';
         });
       }
     } catch (e) {
@@ -141,7 +158,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 8),
                 const Text(
-                  'ورود سریع و امن با لایسنس اختصاصی',
+                  'ورود سریع و امن با لینک اختصاصی',
                   style: TextStyle(fontSize: 14, color: Colors.black54),
                 ),
                 const SizedBox(height: 32),
@@ -149,7 +166,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 Card(
                   elevation: 0,
                   color: Colors.white,
-                  shape: RoundedRectangleBorder( // اصلاح نام کلاس
+                  shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(24),
                     side: BorderSide(color: Colors.grey.shade200),
                   ),
@@ -159,28 +176,28 @@ class _LoginScreenState extends State<LoginScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Text(
-                          'لایسنس خود را وارد کنید',
+                          'لینک خود را وارد کنید',
                           style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
                         ),
                         const SizedBox(height: 8),
                         const Text(
-                          'برای ورود به پنل، کلید لایسنس خریداری شده خود را در کادر زیر قرار دهید.',
+                          'برای ورود به فروشگاه، لینک اختصاصی ارسال شده برای خود را در کادر زیر قرار دهید.',
                           style: TextStyle(fontSize: 13, color: Colors.black54),
                         ),
                         const SizedBox(height: 24),
                         TextField(
-                          controller: _licenseController,
+                          controller: _linkController,
                           enabled: !_isLoading,
                           textDirection: TextDirection.ltr,
                           decoration: InputDecoration(
-                            hintText: 'BARANLINK-XXXX-XXXX',
+                            hintText: 'https://baranlink.cyou/...',
                             hintTextDirection: TextDirection.ltr,
-                            prefixIcon: const Icon(Icons.vpn_key_rounded),
-                            suffixIcon: _licenseController.text.isNotEmpty 
+                            prefixIcon: const Icon(Icons.link_rounded),
+                            suffixIcon: _linkController.text.isNotEmpty 
                                 ? IconButton(
                                     icon: const Icon(Icons.clear_rounded, color: Colors.grey),
                                     onPressed: () {
-                                      _licenseController.clear();
+                                      _linkController.clear();
                                       setState(() { _errorMessage = ''; });
                                     },
                                   )
@@ -202,7 +219,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Theme.of(context).colorScheme.primary,
                               foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), // اصلاح نام کلاس
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                               elevation: 0,
                             ),
                             child: _isLoading
@@ -210,7 +227,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                     width: 24, height: 24,
                                     child: CircularProgressIndicator(strokeWidth: 3, color: Colors.white),
                                   )
-                                : const Text('بررسی لایسنس و ورود', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                                : const Text('بررسی لینک و ورود', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                           ),
                         ),
                         if (_errorMessage.isNotEmpty) ...[
@@ -220,7 +237,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             decoration: BoxDecoration(
                               color: Colors.red.shade50,
                               borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: Colors.red.shade100), // اصلاح کادر حاشیه
+                              border: Border.all(color: Colors.red.shade100),
                             ),
                             child: Row(
                               children: [
