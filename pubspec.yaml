@@ -19,10 +19,11 @@ dev_dependencies:
     sdk: flutter
   flutter_launcher_icons: ^0.13.1
 
+# تنظیمات ساخت خودکار آیکون
 flutter_icons:
   android: "launcher_icon"
   ios: true
-  image_path: "icon.png" # فایل آیکون شما باید با این نام در پوشه اصلی باشد
+  image_path: "icon.png" # عکس آیکون شما باید با این نام در پوشه اصلی قرار گیرد
 
 flutter:
   uses-material-design: true
