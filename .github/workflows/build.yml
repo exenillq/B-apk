@@ -26,7 +26,8 @@ jobs:
           channel: 'stable'
 
       - name: Create Flutter Project Structure
-        run: flutter create . --platforms=android
+        # اضافه کردن --project-name برای جلوگیری از خطای نام‌گذاری گیت‌هاب
+        run: flutter create --project-name baran_link . --platforms=android
 
       - name: Clean and Install Dependencies
         run: |
