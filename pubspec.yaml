@@ -1,0 +1,28 @@
+name: baran_link
+description: ورود سریع و امن با لایسنس اختصاصی
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  http: ^1.2.0
+  webview_flutter: ^4.5.0
+  cupertino_icons: ^1.0.6
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_launcher_icons: ^0.13.1
+
+flutter_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "icon.png" # فایل آیکون شما باید با این نام در پوشه اصلی باشد
+
+flutter:
+  uses-material-design: true
