@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:webview_flutter/webview_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 void main() {
   runApp(const BaranApp());
@@ -16,10 +16,10 @@ class BaranApp extends StatelessWidget {
       title: 'Baran Link',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        fontFamily: 'Tahoma', // در صورت تمایل می‌توانید فونت دیگری اضافه کنید
+        fontFamily: 'Tahoma',
         colorScheme: ColorScheme.fromSeed(
           seedColor: Colors.deepOrange,
-          primary: const Color(0xFFFF5722), // رنگ نارنجی اختصاصی مشابه اکسپرس
+          primary: const Color(0xFFFF5722),
           surface: Colors.white,
           background: const Color(0xFFF5F5F5),
         ),
@@ -47,20 +47,6 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _licenseController = TextEditingController();
   bool _isLoading = false;
   String _errorMessage = '';
-  bool _showWebView = false;
-  late final WebViewController _webViewController;
-
-  // تابع پاک‌سازی کش مرورگر و بازگشت به صفحه ورود
-  Future<void> _resetAndClearCache() async {
-    final WebViewCookieManager cookieManager = WebViewCookieManager();
-    await cookieManager.clearCookies();
-    
-    setState(() {
-      _showWebView = false;
-      _licenseController.clear();
-      _errorMessage = '';
-    });
-  }
 
   Future<void> _processLogin() async {
     final license = _licenseController.text.trim();
@@ -89,16 +75,23 @@ class _LoginScreenState extends State<LoginScreen> {
         final String accessToken = data['access_token'] ?? '';
 
         if (success && accessToken.isNotEmpty) {
-          final ssoLink =
+          // ساخت لینک هدایت بر اساس توکن دریافت شده
+          final String ssoLink =
               'https://snapp.market/?source=jek_pwa-food&food_service_design=new&token=$accessToken&sso_channel=food';
           
-          _webViewController = WebViewController()
-            ..setJavaScriptMode(JavaScriptMode.unrestricted)
-            ..loadRequest(Uri.parse(ssoLink));
-
-          setState(() {
-            _showWebView = true;
-          });
+          final Uri url = Uri.parse(ssoLink);
+          
+          // باز کردن لینک در مرورگر پیش‌فرض گوشی
+          if (await canLaunchUrl(url)) {
+            await launchUrl(
+              url,
+              mode: LaunchMode.externalApplication,
+            );
+          } else {
+             setState(() {
+              _errorMessage = 'امکان باز کردن لینک در مرورگر وجود ندارد.';
+            });
+          }
         } else {
           setState(() {
             _errorMessage = data['message'] ?? 'لایسنس وارد شده نامعتبر یا منقضی شده است.';
@@ -122,39 +115,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // ---------------------------------------------------------
-    // نمای وب‌ویو (پس از ورود موفق)
-    // ---------------------------------------------------------
-    if (_showWebView) {
-      return Scaffold(
-        appBar: AppBar(
-          backgroundColor: Theme.of(context).colorScheme.primary,
-          foregroundColor: Colors.white,
-          elevation: 2,
-          title: const Text(
-            'پنل اختصاصی',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-          ),
-          actions: [
-            TextButton.icon(
-              onPressed: _resetAndClearCache,
-              icon: const Icon(Icons.cleaning_services_rounded, color: Colors.white, size: 20),
-              label: const Text(
-                'پاک‌سازی و خروج',
-                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-              ),
-            ),
-          ],
-        ),
-        body: SafeArea(
-          child: WebViewWidget(controller: _webViewController),
-        ),
-      );
-    }
-
-    // ---------------------------------------------------------
-    // نمای صفحه لاگین (دریافت لایسنس)
-    // ---------------------------------------------------------
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.background,
       body: SafeArea(
