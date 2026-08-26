@@ -75,13 +75,11 @@ class _LoginScreenState extends State<LoginScreen> {
         final String accessToken = data['access_token'] ?? '';
 
         if (success && accessToken.isNotEmpty) {
-          // ساخت لینک هدایت بر اساس توکن دریافت شده
           final String ssoLink =
               'https://snapp.market/?source=jek_pwa-food&food_service_design=new&token=$accessToken&sso_channel=food';
           
           final Uri url = Uri.parse(ssoLink);
           
-          // باز کردن لینک در مرورگر پیش‌فرض گوشی
           if (await canLaunchUrl(url)) {
             await launchUrl(
               url,
@@ -151,7 +149,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 Card(
                   elevation: 0,
                   color: Colors.white,
-                  shape: RoundedRectangleBinding(
+                  shape: RoundedRectangleBorder( // اصلاح نام کلاس
                     borderRadius: BorderRadius.circular(24),
                     side: BorderSide(color: Colors.grey.shade200),
                   ),
@@ -204,7 +202,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Theme.of(context).colorScheme.primary,
                               foregroundColor: Colors.white,
-                              shape: RoundedRectangleBinding(borderRadius: BorderRadius.circular(16)),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), // اصلاح نام کلاس
                               elevation: 0,
                             ),
                             child: _isLoading
@@ -222,7 +220,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             decoration: BoxDecoration(
                               color: Colors.red.shade50,
                               borderRadius: BorderRadius.circular(12),
-                              border: BorderSide(color: Colors.red.shade100),
+                              border: Border.all(color: Colors.red.shade100), // اصلاح کادر حاشیه
                             ),
                             child: Row(
                               children: [
