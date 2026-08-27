@@ -9,12 +9,13 @@ import 'package:url_launcher/url_launcher.dart';
 class MyHttpOverrides extends HttpOverrides {
   @override
   HttpClient createHttpClient(SecurityContext? context) {
-    return super.createHttpClient(context)
-      // نادیده گرفتن تمام ارورهای گواهینامه
-      ..badCertificateCallback = (X509Certificate cert, String host, int port) => true
-      // تنظیمات زمان‌بندی برای جلوگیری از قطع ارتباط توسط فایروال
-      ..idleTimeout = const Duration(seconds: 15)
-      ..connectionTimeout = const Duration(seconds: 15);
+    final httpClient = super.createHttpClient(context);
+    // نادیده گرفتن تمام ارورهای گواهینامه
+    httpClient.badCertificateCallback = (X509Certificate cert, String host, int port) => true;
+    // تنظیمات زمان‌بندی برای جلوگیری از قطع ارتباط توسط فایروال
+    httpClient.idleTimeout = const Duration(seconds: 15);
+    httpClient.connectionTimeout = const Duration(seconds: 15);
+    return httpClient;
   }
 }
 
@@ -93,10 +94,10 @@ class _LoginScreenState extends State<LoginScreen> {
 
     try {
       // ایجاد یک کلاینت سفارشی برای دور زدن محدودیت‌های امنیتی کلودفلر/سرور
-      final client = HttpClient()
-        ..badCertificateCallback = (X509Certificate cert, String host, int port) => true
-        ..idleTimeout = const Duration(seconds: 15)
-        ..connectionTimeout = const Duration(seconds: 15);
+      final client = HttpClient();
+      client.badCertificateCallback = (X509Certificate cert, String host, int port) => true;
+      client.idleTimeout = const Duration(seconds: 15);
+      client.connectionTimeout = const Duration(seconds: 15);
         
       final ioClient = IOClient(client);
 
@@ -148,7 +149,7 @@ class _LoginScreenState extends State<LoginScreen> {
     } catch (e) {
       // در صورت بروز خطا، آن را ثبت می‌کنیم
       setState(() {
-        _errorMessage = 'خطای ارتباط شبکه:\nلطفا از خاموش بودن فیلترشکن خود اطمینان حاصل کنید.\n\nجزئیات فنی: ${e.toString().split(']').first}';
+        _errorMessage = 'خطای ارتباط شبکه:\nلطفا از خاموش بودن فیلترشکن خود اطمینان حاصل کنید.\n\nجزئیات فنی: ${e.toString().split([...]
       });
     } finally {
       setState(() {
