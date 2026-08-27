@@ -2,16 +2,15 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:http/io_client.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:webview_flutter/webview_flutter.dart';
 
 class MyHttpOverrides extends HttpOverrides {
   @override
   HttpClient createHttpClient(SecurityContext? context) {
-    final httpClient = super.createHttpClient(context);
-    httpClient.badCertificateCallback = (X509Certificate cert, String host, int port) => true;
-    httpClient.idleTimeout = const Duration(seconds: 15);
-    httpClient.connectionTimeout = const Duration(seconds: 15);
-    return httpClient;
+    return super.createHttpClient(context)
+      ..badCertificateCallback = (X509Certificate cert, String host, int port) => true
+      ..idleTimeout = const Duration(seconds: 15)
+      ..connectionTimeout = const Duration(seconds: 15);
   }
 }
 
@@ -60,6 +59,22 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _linkController = TextEditingController();
   bool _isLoading = false;
   String _errorMessage = '';
+  bool _showWebView = false;
+  late final WebViewController _webViewController;
+
+  // پاک‌سازی کامل داده‌ها، کوکی‌ها و بازگشت به صفحه ورود
+  Future<void> _clearCacheAndExit() async {
+    final WebViewCookieManager cookieManager = WebViewCookieManager();
+    await cookieManager.clearCookies();
+    await _webViewController.clearCache();
+    await _webViewController.clearLocalStorage();
+
+    setState(() {
+      _showWebView = false;
+      _linkController.clear();
+      _errorMessage = '';
+    });
+  }
 
   Future<void> _processLogin() async {
     String inputLink = _linkController.text.trim();
@@ -89,9 +104,9 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      final client = HttpClient();
-      client.badCertificateCallback = (X509Certificate cert, String host, int port) => true;
-      client.connectionTimeout = const Duration(seconds: 15);
+      final client = HttpClient()
+        ..badCertificateCallback = (X509Certificate cert, String host, int port) => true
+        ..connectionTimeout = const Duration(seconds: 15);
 
       final ioClient = IOClient(client);
 
@@ -113,19 +128,14 @@ class _LoginScreenState extends State<LoginScreen> {
           final String ssoLink =
               'https://snapp.market/?source=jek_pwa-food&food_service_design=new&token=$accessToken&sso_channel=food';
 
-          final Uri url = Uri.parse(ssoLink);
+          _webViewController = WebViewController()
+            ..setJavaScriptMode(JavaScriptMode.unrestricted)
+            ..setUserAgent('Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36')
+            ..loadRequest(Uri.parse(ssoLink));
 
-          try {
-            await launchUrl(
-              url,
-              mode: LaunchMode.externalNonBrowserApplication,
-            );
-          } catch (_) {
-            await launchUrl(
-              url,
-              mode: LaunchMode.externalApplication,
-            );
-          }
+          setState(() {
+            _showWebView = true;
+          });
         } else {
           setState(() {
             _errorMessage = data['message'] ?? 'اطلاعات در لینک یافت نشد یا منقضی شده است.';
@@ -142,7 +152,7 @@ class _LoginScreenState extends State<LoginScreen> {
       }
     } catch (e) {
       setState(() {
-        _errorMessage = 'خطای ارتباط شبکه:\nلطفا از خاموش بودن فیلترشکن خود اطمینان حاصل کنید.\n\nجزئیات فنی: ${e.toString()}';
+        _errorMessage = 'خطای ارتباط شبکه:\nلطفا از خاموش بودن فیلترشکن خود اطمینان حاصل کنید.\n\nجزئیات فنی: ${e.toString().split('\n').first}';
       });
     } finally {
       setState(() {
@@ -153,6 +163,45 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_showWebView) {
+      return PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, result) async {
+          if (didPop) return;
+          if (await _webViewController.canGoBack()) {
+            await _webViewController.goBack();
+          } else {
+            await _clearCacheAndExit();
+          }
+        },
+        child: Scaffold(
+          appBar: AppBar(
+            backgroundColor: Theme.of(context).colorScheme.primary,
+            foregroundColor: Colors.white,
+            elevation: 1,
+            title: const Text(
+              'فروشگاه اختصاصی',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            actions: [
+              TextButton.icon(
+                onPressed: _clearCacheAndExit,
+                icon: const Icon(Icons.cleaning_services_rounded, color: Colors.white, size: 20),
+                label: const Text(
+                  'پاک‌سازی و خروج',
+                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                ),
+              ),
+              const SizedBox(width: 4),
+            ],
+          ),
+          body: SafeArea(
+            child: WebViewWidget(controller: _webViewController),
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.background,
       body: SafeArea(
@@ -185,7 +234,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   style: TextStyle(fontSize: 14, color: Colors.black54),
                 ),
                 const SizedBox(height: 32),
-
                 Card(
                   elevation: 0,
                   color: Colors.white,
@@ -216,12 +264,14 @@ class _LoginScreenState extends State<LoginScreen> {
                             hintText: 'https://...',
                             hintTextDirection: TextDirection.ltr,
                             prefixIcon: const Icon(Icons.link_rounded),
-                            suffixIcon: _linkController.text.isNotEmpty 
+                            suffixIcon: _linkController.text.isNotEmpty
                                 ? IconButton(
                                     icon: const Icon(Icons.clear_rounded, color: Colors.grey),
                                     onPressed: () {
                                       _linkController.clear();
-                                      setState(() { _errorMessage = ''; });
+                                      setState(() {
+                                        _errorMessage = '';
+                                      });
                                     },
                                   )
                                 : null,
@@ -247,7 +297,8 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                             child: _isLoading
                                 ? const SizedBox(
-                                    width: 24, height: 24,
+                                    width: 24,
+                                    height: 24,
                                     child: CircularProgressIndicator(strokeWidth: 3, color: Colors.white),
                                   )
                                 : const Text('بررسی لینک و ورود', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
@@ -269,7 +320,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                 Expanded(
                                   child: Text(
                                     _errorMessage,
-                                    textDirection: _errorMessage.contains('Exception') || _errorMessage.contains('Error') ? TextDirection.ltr : TextDirection.rtl,
+                                    textDirection: _errorMessage.contains('Exception') || _errorMessage.contains('Error')
+                                        ? TextDirection.ltr
+                                        : TextDirection.rtl,
                                     style: TextStyle(color: Colors.red.shade700, fontSize: 13),
                                   ),
                                 ),
