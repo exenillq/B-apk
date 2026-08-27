@@ -26,8 +26,12 @@ jobs:
           channel: 'stable'
 
       - name: Create Flutter Project Structure
-        # اضافه کردن --project-name برای جلوگیری از خطای نام‌گذاری گیت‌هاب
         run: flutter create --project-name baran_link . --platforms=android
+
+      # افزودن خودکار دسترسی اینترنت به مانیفست اندروید
+      - name: Add Internet Permission
+        run: |
+          sed -i '/<application/i \    <uses-permission android:name="android.permission.INTERNET"/>' android/app/src/main/AndroidManifest.xml
 
       - name: Clean and Install Dependencies
         run: |
