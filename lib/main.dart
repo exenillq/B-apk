@@ -1,19 +1,16 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:http/io_client.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-// تونل امنیتی برای دور زدن خطاهای SSL
 class MyHttpOverrides extends HttpOverrides {
   @override
   HttpClient createHttpClient(SecurityContext? context) {
-    final httpClient = super.createHttpClient(context);
-    httpClient.badCertificateCallback = (X509Certificate cert, String host, int port) => true;
-    httpClient.idleTimeout = const Duration(seconds: 15);
-    httpClient.connectionTimeout = const Duration(seconds: 15);
-    return httpClient;
+    return super.createHttpClient(context)
+      ..badCertificateCallback = (X509Certificate cert, String host, int port) => true
+      ..idleTimeout = const Duration(seconds: 15)
+      ..connectionTimeout = const Duration(seconds: 15);
   }
 }
 
@@ -91,13 +88,12 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      final client = HttpClient();
-      client.badCertificateCallback = (X509Certificate cert, String host, int port) => true;
-      client.connectionTimeout = const Duration(seconds: 15);
+      final client = HttpClient()
+        ..badCertificateCallback = (X509Certificate cert, String host, int port) => true
+        ..connectionTimeout = const Duration(seconds: 15);
         
       final ioClient = IOClient(client);
 
-      // ارسال درخواست مستقیماً به لینکی که کاربر وارد کرده است (بدون هیچ شرط و شروطی)
       final response = await ioClient.get(
         targetUri,
         headers: {
@@ -118,15 +114,16 @@ class _LoginScreenState extends State<LoginScreen> {
           
           final Uri url = Uri.parse(ssoLink);
           
-          if (await canLaunchUrl(url)) {
+          try {
+            await launchUrl(
+              url,
+              mode: LaunchMode.externalNonBrowserApplication,
+            );
+          } catch (_) {
             await launchUrl(
               url,
               mode: LaunchMode.externalApplication,
             );
-          } else {
-             setState(() {
-              _errorMessage = 'امکان باز کردن مرورگر در گوشی شما وجود ندارد.';
-            });
           }
         } else {
           setState(() {
@@ -144,7 +141,7 @@ class _LoginScreenState extends State<LoginScreen> {
       }
     } catch (e) {
       setState(() {
-        _errorMessage = 'خطای ارتباط شبکه:\nلطفا از خاموش بودن فیلترشکن خود اطمینان حاصل کنید.\n\nجزئیات فنی: ${e.toString().split('(').first}';
+        _errorMessage = 'خطای ارتباط شبکه:\nلطفا از خاموش بودن فیلترشکن خود اطمینان حاصل کنید.\n\nجزئیات فنی: ${e.toString().split('\n').first}';
       });
     } finally {
       setState(() {
