@@ -9,10 +9,11 @@ import 'package:url_launcher/url_launcher.dart';
 class MyHttpOverrides extends HttpOverrides {
   @override
   HttpClient createHttpClient(SecurityContext? context) {
-    return super.createHttpClient(context)
-      ..badCertificateCallback = (X509Certificate cert, String host, int port) => true
-      ..idleTimeout = const Duration(seconds: 15)
-      ..connectionTimeout = const Duration(seconds: 15);
+    final httpClient = super.createHttpClient(context);
+    httpClient.badCertificateCallback = (X509Certificate cert, String host, int port) => true;
+    httpClient.idleTimeout = const Duration(seconds: 15);
+    httpClient.connectionTimeout = const Duration(seconds: 15);
+    return httpClient;
   }
 }
 
@@ -90,9 +91,9 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      final client = HttpClient()
-        ..badCertificateCallback = (X509Certificate cert, String host, int port) => true
-        ..connectionTimeout = const Duration(seconds: 15);
+      final client = HttpClient();
+      client.badCertificateCallback = (X509Certificate cert, String host, int port) => true;
+      client.connectionTimeout = const Duration(seconds: 15);
         
       final ioClient = IOClient(client);
 
@@ -143,7 +144,7 @@ class _LoginScreenState extends State<LoginScreen> {
       }
     } catch (e) {
       setState(() {
-        _errorMessage = 'خطای ارتباط شبکه:\nلطفا از خاموش بودن فیلترشکن خود اطمینان حاصل کنید.\n\nجزئیات فنی: ${e.toString().split('\n').first}';
+        _errorMessage = 'خطای ارتباط شبکه:\nلطفا از خاموش بودن فیلترشکن خود اطمینان حاصل کنید.\n\nجزئیات فنی: ${e.toString().split('(').first}';
       });
     } finally {
       setState(() {
