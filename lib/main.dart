@@ -95,6 +95,7 @@ class _LoginScreenState extends State<LoginScreen> {
       // ایجاد یک کلاینت سفارشی برای دور زدن محدودیت‌های امنیتی کلودفلر/سرور
       final client = HttpClient()
         ..badCertificateCallback = (X509Certificate cert, String host, int port) => true
+        ..idleTimeout = const Duration(seconds: 15)
         ..connectionTimeout = const Duration(seconds: 15);
         
       final ioClient = IOClient(client);
@@ -147,7 +148,7 @@ class _LoginScreenState extends State<LoginScreen> {
     } catch (e) {
       // در صورت بروز خطا، آن را ثبت می‌کنیم
       setState(() {
-        _errorMessage = 'خطای ارتباط شبکه:\nلطفا از خاموش بودن فیلترشکن خود اطمینان حاصل کنید.\n\nجزئیات فنی: ${e.toString().split('\n').first}';
+        _errorMessage = 'خطای ارتباط شبکه:\nلطفا از خاموش بودن فیلترشکن خود اطمینان حاصل کنید.\n\nجزئیات فنی: ${e.toString().split(']').first}';
       });
     } finally {
       setState(() {
