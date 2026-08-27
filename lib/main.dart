@@ -2,19 +2,23 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:http/io_client.dart'; // اضافه شدن کتابخانه جدید
 import 'package:url_launcher/url_launcher.dart';
 
-// این کلاس برای دور زدن خطاهای احتمالی گواهینامه SSL سرور شما اضافه شده است
+// ایجاد یک تونل ارتباطی کاملاً منعطف برای دور زدن خطاهای Handshake و SSL
 class MyHttpOverrides extends HttpOverrides {
   @override
   HttpClient createHttpClient(SecurityContext? context) {
     return super.createHttpClient(context)
-      ..badCertificateCallback = (X509Certificate cert, String host, int port) => true;
+      // نادیده گرفتن تمام ارورهای گواهینامه
+      ..badCertificateCallback = (X509Certificate cert, String host, int port) => true
+      // تنظیمات زمان‌بندی برای جلوگیری از قطع ارتباط توسط فایروال
+      ..idleTimeout = const Duration(seconds: 15)
+      ..connectionTimeout = const Duration(seconds: 15);
   }
 }
 
 void main() {
-  // فعال‌سازی بای‌پس SSL برای کل اپلیکیشن
   HttpOverrides.global = MyHttpOverrides();
   runApp(const BaranApp());
 }
@@ -88,12 +92,20 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      // ارسال درخواست با هدرهای مرورگر واقعی برای جلوگیری از بلاک شدن توسط فایروال (مثل کلودفلر)
-      final response = await http.get(
+      // ایجاد یک کلاینت سفارشی برای دور زدن محدودیت‌های امنیتی کلودفلر/سرور
+      final client = HttpClient()
+        ..badCertificateCallback = (X509Certificate cert, String host, int port) => true
+        ..connectionTimeout = const Duration(seconds: 15);
+        
+      final ioClient = IOClient(client);
+
+      // ارسال درخواست با هدرهای مرورگر واقعی (کروم اندروید)
+      final response = await ioClient.get(
         targetUri,
         headers: {
-          'Accept': 'application/json',
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+          'Accept': 'application/json, text/plain, */*',
+          'User-Agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
+          'Connection': 'keep-alive'
         },
       ).timeout(const Duration(seconds: 15));
 
@@ -133,9 +145,9 @@ class _LoginScreenState extends State<LoginScreen> {
         });
       }
     } catch (e) {
-      // در صورت بروز خطا، حالا متن دقیق ارور سیستم را نمایش می‌دهیم تا عیب‌یابی راحت شود
+      // در صورت بروز خطا، آن را ثبت می‌کنیم
       setState(() {
-        _errorMessage = 'خطای ارتباط:\n${e.toString()}';
+        _errorMessage = 'خطای ارتباط شبکه:\nلطفا از خاموش بودن فیلترشکن خود اطمینان حاصل کنید.\n\nجزئیات فنی: ${e.toString().split('\n').first}';
       });
     } finally {
       setState(() {
@@ -262,7 +274,6 @@ class _LoginScreenState extends State<LoginScreen> {
                                 Expanded(
                                   child: Text(
                                     _errorMessage,
-                                    // تنظیم جهت متن ارور برای خوانایی بهتر لاگ‌های انگلیسی
                                     textDirection: _errorMessage.contains('Exception') ? TextDirection.ltr : TextDirection.rtl,
                                     style: TextStyle(color: Colors.red.shade700, fontSize: 13),
                                   ),
