@@ -2,20 +2,17 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/io_client.dart'; // اضافه شدن کتابخانه جدید
+import 'package:http/io_client.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-// ایجاد یک تونل ارتباطی کاملاً منعطف برای دور زدن خطاهای Handshake و SSL
+// تونل امنیتی برای دور زدن خطاهای SSL
 class MyHttpOverrides extends HttpOverrides {
   @override
   HttpClient createHttpClient(SecurityContext? context) {
-    final httpClient = super.createHttpClient(context);
-    // نادیده گرفتن تمام ارورهای گواهینامه
-    httpClient.badCertificateCallback = (X509Certificate cert, String host, int port) => true;
-    // تنظیمات زمان‌بندی برای جلوگیری از قطع ارتباط توسط فایروال
-    httpClient.idleTimeout = const Duration(seconds: 15);
-    httpClient.connectionTimeout = const Duration(seconds: 15);
-    return httpClient;
+    return super.createHttpClient(context)
+      ..badCertificateCallback = (X509Certificate cert, String host, int port) => true
+      ..idleTimeout = const Duration(seconds: 15)
+      ..connectionTimeout = const Duration(seconds: 15);
   }
 }
 
@@ -93,15 +90,13 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      // ایجاد یک کلاینت سفارشی برای دور زدن محدودیت‌های امنیتی کلودفلر/سرور
-      final client = HttpClient();
-      client.badCertificateCallback = (X509Certificate cert, String host, int port) => true;
-      client.idleTimeout = const Duration(seconds: 15);
-      client.connectionTimeout = const Duration(seconds: 15);
+      final client = HttpClient()
+        ..badCertificateCallback = (X509Certificate cert, String host, int port) => true
+        ..connectionTimeout = const Duration(seconds: 15);
         
       final ioClient = IOClient(client);
 
-      // ارسال درخواست با هدرهای مرورگر واقعی (کروم اندروید)
+      // ارسال درخواست مستقیماً به لینکی که کاربر وارد کرده است (بدون هیچ شرط و شروطی)
       final response = await ioClient.get(
         targetUri,
         headers: {
@@ -147,9 +142,8 @@ class _LoginScreenState extends State<LoginScreen> {
         });
       }
     } catch (e) {
-      // در صورت بروز خطا، آن را ثبت می‌کنیم
       setState(() {
-        _errorMessage = 'خطای ارتباط شبکه:\nلطفا از خاموش بودن فیلترشکن خود اطمینان حاصل کنید.\n\nجزئیات فنی: ${e.toString()}';
+        _errorMessage = 'خطای ارتباط شبکه:\nلطفا از خاموش بودن فیلترشکن خود اطمینان حاصل کنید.\n\nجزئیات فنی: ${e.toString().split('\n').first}';
       });
     } finally {
       setState(() {
@@ -276,7 +270,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 Expanded(
                                   child: Text(
                                     _errorMessage,
-                                    textDirection: _errorMessage.contains('Exception') ? TextDirection.ltr : TextDirection.rtl,
+                                    textDirection: _errorMessage.contains('Exception') || _errorMessage.contains('Error') ? TextDirection.ltr : TextDirection.rtl,
                                     style: TextStyle(color: Colors.red.shade700, fontSize: 13),
                                   ),
                                 ),
