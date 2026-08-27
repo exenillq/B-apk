@@ -8,9 +8,7 @@ class MyHttpOverrides extends HttpOverrides {
   @override
   HttpClient createHttpClient(SecurityContext? context) {
     return super.createHttpClient(context)
-      ..badCertificateCallback = (X509Certificate cert, String host, int port) => true
-      ..idleTimeout = const Duration(seconds: 15)
-      ..connectionTimeout = const Duration(seconds: 15);
+      ..badCertificateCallback = (X509Certificate cert, String host, int port) => true;
   }
 }
 
@@ -105,8 +103,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     try {
       final client = HttpClient()
-        ..badCertificateCallback = (X509Certificate cert, String host, int port) => true
-        ..connectionTimeout = const Duration(seconds: 15);
+        ..badCertificateCallback = (X509Certificate cert, String host, int port) => true;
 
       final ioClient = IOClient(client);
 
@@ -152,7 +149,7 @@ class _LoginScreenState extends State<LoginScreen> {
       }
     } catch (e) {
       setState(() {
-        _errorMessage = 'خطای ارتباط شبکه:\nلطفا از خاموش بودن فیلترشکن خود اطمینان حاصل کنید.\n\nجزئیات فنی: ${e.toString().split('\n').first}';
+        _errorMessage = 'خطای ارتباط شبکه:\nلطفا از خاموش بودن فیلترشکن خود اطمینان حاصل کنید.\n\nجزئیات فنی: ${e.toString().split('[...]}';
       });
     } finally {
       setState(() {
@@ -166,7 +163,7 @@ class _LoginScreenState extends State<LoginScreen> {
     if (_showWebView) {
       return PopScope(
         canPop: false,
-        onPopInvokedWithResult: (didPop, result) async {
+        onPopInvoked: (didPop) async {
           if (didPop) return;
           if (await _webViewController.canGoBack()) {
             await _webViewController.goBack();
