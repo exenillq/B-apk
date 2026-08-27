@@ -1,9 +1,21 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 
+// این کلاس برای دور زدن خطاهای احتمالی گواهینامه SSL سرور شما اضافه شده است
+class MyHttpOverrides extends HttpOverrides {
+  @override
+  HttpClient createHttpClient(SecurityContext? context) {
+    return super.createHttpClient(context)
+      ..badCertificateCallback = (X509Certificate cert, String host, int port) => true;
+  }
+}
+
 void main() {
+  // فعال‌سازی بای‌پس SSL برای کل اپلیکیشن
+  HttpOverrides.global = MyHttpOverrides();
   runApp(const BaranApp());
 }
 
@@ -58,12 +70,10 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
-    // هوشمندسازی لینک در صورتی که کاربر https:// را کپی نکرده باشد
     if (!inputLink.startsWith('http://') && !inputLink.startsWith('https://')) {
       inputLink = 'https://$inputLink';
     }
 
-    // اطمینان از اینکه ورودی یک آدرس اینترنتی معتبر است
     Uri? targetUri = Uri.tryParse(inputLink);
     if (targetUri == null || !targetUri.hasAbsolutePath) {
       setState(() {
@@ -78,10 +88,13 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      // ارسال درخواست دقیقاً به همان لینکی که کاربر وارد کرده است (بدون هیچ دستکاری)
+      // ارسال درخواست با هدرهای مرورگر واقعی برای جلوگیری از بلاک شدن توسط فایروال (مثل کلودفلر)
       final response = await http.get(
         targetUri,
-        headers: {'Accept': 'application/json'},
+        headers: {
+          'Accept': 'application/json',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        },
       ).timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 200) {
@@ -90,13 +103,11 @@ class _LoginScreenState extends State<LoginScreen> {
         final String accessToken = data['access_token'] ?? '';
 
         if (success && accessToken.isNotEmpty) {
-          // ساخت لینک هدایت به اسنپ مارکت با استفاده از توکن
           final String ssoLink =
               'https://snapp.market/?source=jek_pwa-food&food_service_design=new&token=$accessToken&sso_channel=food';
           
           final Uri url = Uri.parse(ssoLink);
           
-          // پرتاب کاربر به مرورگر گوشی
           if (await canLaunchUrl(url)) {
             await launchUrl(
               url,
@@ -114,7 +125,7 @@ class _LoginScreenState extends State<LoginScreen> {
         }
       } else if (response.statusCode == 404) {
         setState(() {
-          _errorMessage = 'لینک یافت نشد یا منقضی شده است.';
+          _errorMessage = 'لینک یافت نشد یا منقضی شده است (خطای 404).';
         });
       } else {
         setState(() {
@@ -122,8 +133,9 @@ class _LoginScreenState extends State<LoginScreen> {
         });
       }
     } catch (e) {
+      // در صورت بروز خطا، حالا متن دقیق ارور سیستم را نمایش می‌دهیم تا عیب‌یابی راحت شود
       setState(() {
-        _errorMessage = 'ارتباط با سیستم برقرار نشد، لطفاً اینترنت خود را بررسی کنید.';
+        _errorMessage = 'خطای ارتباط:\n${e.toString()}';
       });
     } finally {
       setState(() {
@@ -250,6 +262,8 @@ class _LoginScreenState extends State<LoginScreen> {
                                 Expanded(
                                   child: Text(
                                     _errorMessage,
+                                    // تنظیم جهت متن ارور برای خوانایی بهتر لاگ‌های انگلیسی
+                                    textDirection: _errorMessage.contains('Exception') ? TextDirection.ltr : TextDirection.rtl,
                                     style: TextStyle(color: Colors.red.shade700, fontSize: 13),
                                   ),
                                 ),
