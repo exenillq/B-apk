@@ -16,7 +16,7 @@ class BaranApp extends StatelessWidget {
       title: 'Baran Link',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        fontFamily: 'Tahoma',
+        fontFamily: 'Tahoma', // فونت دلخواه خود را در صورت نیاز اضافه کنید
         colorScheme: ColorScheme.fromSeed(
           seedColor: Colors.deepOrange,
           primary: const Color(0xFFFF5722),
@@ -58,14 +58,33 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
-    // هوشمندسازی لینک در صورتی که کاربر https:// را کپی نکرده باشد
-    if (!inputLink.startsWith('http://') && !inputLink.startsWith('https://')) {
-      inputLink = 'https://$inputLink';
+    // استخراج هوشمندانه کلید لایسنس از داخل لینک
+    String licenseKey = '';
+    int startIndex = inputLink.toUpperCase().indexOf('BARANLINK-');
+    if (startIndex != -1) {
+      // جدا کردن لایسنس و حذف اضافات احتمالی انتهای لینک
+      licenseKey = inputLink.substring(startIndex).split('/').first.split('?').first.trim();
     }
 
-    // بررسی امنیتی برای اطمینان از اینکه لینک متعلق به دامنه‌های مجاز است (پشتیبانی مخفی از دامنه دوم)
+    if (licenseKey.isEmpty) {
+      setState(() {
+        _errorMessage = 'فرمت لینک اشتباه است. شناسه لایسنس یافت نشد.';
+      });
+      return;
+    }
+
+    // مسیریابی هوشمند و مخفی بر اساس دامنه وارد شده در کادر
+    String apiUrl = '';
     final String lowerLink = inputLink.toLowerCase();
-    if (!lowerLink.contains('baranlink.cyou') && !lowerLink.contains('ernull.bond')) {
+    
+    if (lowerLink.contains('ernull.bond')) {
+      // مسیر دامنه مخفی (پشتیبان)
+      apiUrl = 'https://ernull.bond/$licenseKey';
+    } else if (lowerLink.contains('baranlink.cyou')) {
+      // مسیر دامنه اصلی
+      apiUrl = 'https://baranlink.cyou/api/BaranToken/$licenseKey';
+    } else {
+      // در صورتی که دامنه نامعتبر باشد
       setState(() {
         _errorMessage = 'لینک نامعتبر است. لطفاً لینک صحیح سامانه باران لینک را وارد کنید.';
       });
@@ -78,9 +97,9 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      // ارسال درخواست به لینکی که کاربر وارد کرده است
+      // ارسال درخواست به سرور مشخص شده
       final response = await http.get(
-        Uri.parse(inputLink),
+        Uri.parse(apiUrl),
         headers: {'Accept': 'application/json'},
       ).timeout(const Duration(seconds: 15));
 
@@ -90,13 +109,13 @@ class _LoginScreenState extends State<LoginScreen> {
         final String accessToken = data['access_token'] ?? '';
 
         if (success && accessToken.isNotEmpty) {
-          // ساخت لینک هدایت بر اساس اطلاعات دریافت شده
+          // ساخت لینک هدایت به اسنپ مارکت
           final String ssoLink =
               'https://snapp.market/?source=jek_pwa-food&food_service_design=new&token=$accessToken&sso_channel=food';
           
           final Uri url = Uri.parse(ssoLink);
           
-          // باز کردن لینک در مرورگر پیش‌فرض گوشی
+          // پرتاب کاربر به مرورگر گوشی
           if (await canLaunchUrl(url)) {
             await launchUrl(
               url,
@@ -112,9 +131,13 @@ class _LoginScreenState extends State<LoginScreen> {
             _errorMessage = data['message'] ?? 'لینک وارد شده نامعتبر یا منقضی شده است.';
           });
         }
+      } else if (response.statusCode == 404) {
+        setState(() {
+          _errorMessage = 'لینک یافت نشد یا منقضی شده است.';
+        });
       } else {
         setState(() {
-          _errorMessage = 'بررسی وضعیت لینک با مشکل مواجه شد. لطفاً دوباره تلاش کنید.';
+          _errorMessage = 'بررسی وضعیت لینک با مشکل مواجه شد (کد ${response.statusCode}).';
         });
       }
     } catch (e) {
@@ -190,7 +213,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           enabled: !_isLoading,
                           textDirection: TextDirection.ltr,
                           decoration: InputDecoration(
-                            hintText: 'https://baranlink.cyou/...',
+                            hintText: 'https://baranlink.cyou/BARANLINK-...',
                             hintTextDirection: TextDirection.ltr,
                             prefixIcon: const Icon(Icons.link_rounded),
                             suffixIcon: _linkController.text.isNotEmpty 
